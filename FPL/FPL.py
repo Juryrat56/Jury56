@@ -1,5 +1,6 @@
 import requests
 import pandas as pd
+import numpy as np
 from openpyxl import load_workbook
 import matplotlib.pyplot as plt
 import os
@@ -226,6 +227,8 @@ if __name__ == "__main__":
     print("\nLive GW Points (flattened):")
     print(live_with_names.head())
 
+
+
     # 5. Mini League standings
 
     league_id = 828398  # your mini-league ID
@@ -250,6 +253,28 @@ if __name__ == "__main__":
 
     combined_histories = pd.concat(all_histories, ignore_index=True)
 
+    # Parameters
+    managers = ["Dan Colling", "Alex Porfyrakis", "Zane Henry", "Freddie Beckett-Smith" ,"Clem Gibbs", "Jack Meads" , "Toby Williams" ]
+    n_weeks = 38
+
+    # Generate synthetic data
+    data = []
+
+    for manager in managers:
+        total_points = 0
+        for week in range(1, n_weeks + 1):
+            # Random weekly points between 40 and 80
+            weekly_points = np.random.randint(40, 80)
+            total_points += weekly_points
+            data.append({
+                "manager": manager,
+                "event": week,
+                "total_points": total_points
+            })
+    # Create DataFrame
+    histories_df = pd.DataFrame(data)
+    print(histories_df.head())
+    
     # 6. Export everything to Excel
     export_to_excel_with_lookup({
         "My Team": picks,
@@ -260,6 +285,6 @@ if __name__ == "__main__":
     }, player_lookup)
 
     # 7. Plot league points
-    plot_league_histories(combined_histories)
+    plot_league_histories(histories_df)
 
     
