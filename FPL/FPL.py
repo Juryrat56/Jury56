@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 from openpyxl import load_workbook
+import matplotlib.pyplot as plt
 import os
 
 BASE_URL = "https://fantasy.premierleague.com/api/"
@@ -100,7 +101,49 @@ def get_bootstrap_data():
     response.raise_for_status()
     return response.json()
 
+def get_league_standings(league_id, page=1):
+    """Fetch all members of a classic mini-league."""
+    url = f"https://fantasy.premierleague.com/api/leagues-classic/{league_id}/standings/?page_standings={page}"
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.json()
 
+def get_team_history(team_id):
+    """Fetch season history for a given team ID."""
+    url = f"https://fantasy.premierleague.com/api/entry/{team_id}/history/"
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.json()
+
+def plot_league_histories(histories_df):
+    """
+    Plot total points over gameweeks for all managers in a league.
+    histories_df: DataFrame from combined_histories (includes manager, event, total_points)
+    """
+
+    print(histories_df.head())
+    print(histories_df.columns)
+    print(histories_df.dtypes)
+    plt.figure(figsize=(16, 8))  # wider
+    print(histories_df["manager"].unique())
+
+    # Group by manager and plot each line
+    for manager, df in histories_df.groupby("manager"):
+        df = df.sort_values("event")  # sort by gameweek
+        plt.plot(df["event"], df["total_points"], label=manager, linewidth=2)
+
+        # Optionally annotate last point
+        last_event = df["event"].iloc[-1]
+        last_points = df["total_points"].iloc[-1]
+        plt.text(last_event + 0.2, last_points, manager, fontsize=8)
+
+    plt.title("League Total Points Over Time", fontsize=16, weight="bold")
+    plt.xlabel("Gameweek")
+    plt.ylabel("Total Points")
+    plt.grid(True, alpha=0.3)
+    plt.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=3, fontsize=8)
+    plt.tight_layout()
+    plt.show()
 
 if __name__ == "__main__":
     EMAIL = input("your_email_here")
@@ -170,23 +213,53 @@ if __name__ == "__main__":
 
     # 4. Fetch live points for this GW
     live_points = get_live_points(GAMEWEEK)
-    # Flatten stats dict into separate columns
-    elements_df = pd.DataFrame(live_points["elements"])  # list of dicts
-    stats_df = pd.json_normalize(elements_df["stats"])  # flatten stats
-    stats_df["id"] = elements_df["id"]  # add player id
 
-    # Merge with player_lookup to add names, teams, positions
+    # elements is already a list of dicts
+    elements_list = live_points["elements"]
+
+    # Flatten stats into columns
+    stats_df = pd.json_normalize(elements_list, sep="_")
+
+    # Merge with lookup for player details
     live_with_names = stats_df.merge(player_lookup, on="id", how="left")
 
-    # Now export live_with_names instead of elements_df
-    export_to_excel_with_lookup(
-        dataframes={
-            "My Team": picks,
-            "History": history_df,
-            "Classic Leagues": classic_leagues,
-            "Live Points": live_with_names  # flattened
-        },
-        player_lookup=player_lookup
-    )
+    print("\nLive GW Points (flattened):")
+    print(live_with_names.head())
+
+    # 5. Mini League standings
+
+    league_id = 828398  # your mini-league ID
+    league_data = get_league_standings(league_id)
+
+    managers = league_data["standings"]["results"]
+
+    all_histories = []
+
+    for manager in managers:
+        team_id = manager["entry"]
+        team_name = manager["entry_name"]
+        player_name = manager["player_name"]
+
+        history = get_team_history(team_id)
+        history_df = pd.DataFrame(history["current"])
+        history_df["manager"] = player_name
+        history_df["team_name"] = team_name
+        history_df["team_id"] = team_id
+
+        all_histories.append(history_df)
+
+    combined_histories = pd.concat(all_histories, ignore_index=True)
+
+    # 6. Export everything to Excel
+    export_to_excel_with_lookup({
+        "My Team": picks,
+        "History": history_df,
+        "Classic Leagues": classic_leagues,
+        "League Histories": combined_histories,
+        "Live Points": live_with_names
+    }, player_lookup)
+
+    # 7. Plot league points
+    plot_league_histories(combined_histories)
 
     
