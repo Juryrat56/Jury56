@@ -92,6 +92,8 @@ def export_to_excel_with_lookup(dataframes, player_lookup, filename="fpl_data.xl
                          value=f"=VLOOKUP({player_id_cell}, Lookup!$A$2:$K$1000, 7, FALSE)/10")
             ws_team.cell(row=2, column=col_max + 5,
                          value=f"=SUM($J$2:$J$16)")
+            
+    
 
     Save_Path = os.path.join(Save_Location, filename)
     wb.save(Save_Path)
@@ -118,7 +120,7 @@ def get_team_history(team_id):
     response.raise_for_status()
     return response.json()
 
-def Mini_league_standings(league_id):
+def Mini_league_standings(league_id, k_factor=10, start_elo=1500):
     """find mini league standings"""
     league_data = get_league_standings(league_id)
 
@@ -140,6 +142,32 @@ def Mini_league_standings(league_id):
         all_histories.append(history_df)
 
     combined_histories = pd.concat(all_histories, ignore_index=True)
+
+    combined_histories = combined_histories.merge(avg_df, on="event", how="left")
+
+    # --- Add Elo ratings ---
+    combined_histories = combined_histories.sort_values(["event", "manager"])
+    combined_histories["elo"] = np.nan
+
+    # Initialize each manager's Elo
+    elo_ratings = {m["player_name"]: start_elo for m in managers}
+
+    # Loop week by week
+    for gw, week_df in combined_histories.groupby("event"):
+        avg_score = week_df["avg_points"].iloc[0]  # same for all rows in that GW
+
+        for idx, row in week_df.iterrows():
+            manager = row["manager"]
+            score = row["points"]
+
+            # Simple Elo: compare manager score vs league average
+            #expected = 1 / (1 + 10 ** ((avg_score - elo_ratings[manager]) / 400))
+            #actual = 1 if score >= avg_score else 0  # win if above avg
+
+            #elo_change = k_factor * (actual - expected)
+            elo_ratings[manager] += k_factor * (score - (avg_score * elo_ratings[manager]/1500))
+
+            combined_histories.at[idx, "elo"] = elo_ratings[manager]
 
     return combined_histories
 
@@ -173,9 +201,20 @@ def plot_league_histories(histories_df):
     plt.tight_layout()
     plt.show()
 
+def plot_league_elo(histories_df):
+    """Plot league elo"""
+
+    plt.figure(figsize=(16,8))
+
+    # Group by manager and plot each line
+    for manager, df in histories_df.groupby("manager"):
+        df = sort_values("event") #sort by gameweek
+        plt.plot(df["event"], elo, label=manager, fontsize=8)
+
+        
 if __name__ == "__main__":
-    EMAIL = input("your_email_here")
-    PASSWORD = input("your_password_here")
+    EMAIL = input("your_email_here: ")
+    PASSWORD = input("your_password_here: ")
     TEAM_ID = 1533428  # Replace with your FPL team ID (find in URL of your team page)
     GAMEWEEK = 1       # Change to current gameweek
 
@@ -188,6 +227,14 @@ if __name__ == "__main__":
     players_df = pd.DataFrame(bootstrap["elements"])
     teams_df = pd.DataFrame(bootstrap["teams"])
     positions_df = pd.DataFrame(bootstrap["element_types"])
+    
+    events = bootstrap["events"]
+    avg_df = pd.DataFrame([
+        {"event": event["id"], "avg_points": event["average_entry_score"]}
+        for event in events
+    ])
+
+    
 
     # Player lookup: id → full name, team, position
     player_lookup = players_df[["id", "web_name", "first_name", "second_name", "team", "element_type", "now_cost"]]
@@ -289,7 +336,7 @@ if __name__ == "__main__":
     # 6. Export everything to Excel
     export_to_excel_with_lookup({
         "My Team": picks,
-        "History": history_df,
+        "Team History": history_df,
         "Classic Leagues": classic_leagues,
         "Ale League Histories": combined_histories_ale,
         "OBC League Histories": combined_histories_OBC,
