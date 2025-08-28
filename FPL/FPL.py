@@ -196,8 +196,8 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
         # Find which columns to write fixtures into (append after last col)
         headers = []
         for i in range(5):
-            headers.append(f"Fixture {i+1}")
-            headers.append(f"FDR {i+1}")
+            headers.append(f"GW {i+1+GAMEWEEK}")
+            headers.append(f"FDR GW{i+1+GAMEWEEK}")
 
         
         for j, h in enumerate(headers, start=start_col):
@@ -219,30 +219,32 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
                 ws_teams.cell(row=row, column=col+1, value=difficulty)
                 col += 2
             ws_teams.cell(row=row, column=col,
+                         value=f'=J{row}')
+            ws_teams.cell(row=row, column=col+1,
                          value=f'=((W{row} + Y{row} + AA{row} + AC{row} + AE{row})/5)')
             
         ws_teams.conditional_formatting.add(
-            "V2:AF1000",
-            CellIsRule(operator="between", formula=["1", "1.99"], fill=FDR1)    
+            "V2:AG1000",
+            FormulaRule(formula=["IF( W2 > 0 ,OR(W2<2, V2 <2), IF(V2>0,V2<2))"], fill=FDR1)    
         )
         
         ws_teams.conditional_formatting.add(
-            "V2:AF1000",
-            CellIsRule(operator="between", formula=["2", "2.99"], fill=FDR2)   
+            "V2:AG1000",
+            FormulaRule(formula=["IF( W2 > 0 ,OR(W2<3, V2 <3), IF(V2>0,V2<3))"], fill=FDR2)    
         )
 
         ws_teams.conditional_formatting.add(
-            "V2:AF1000",
-            CellIsRule(operator="between", formula=["3","3.99"], fill=FDR3)   
+            "V2:AG1000",
+            FormulaRule(formula=["IF( W2 > 0 ,OR(W2<4, V2 <4), IF(V2>0,V2<4))"], fill=FDR3)    
         )
 
         ws_teams.conditional_formatting.add(
-            "V2:AF1000",
-            CellIsRule(operator="between", formula=["4", "4.99"], fill=FDR4)
+            "V2:AG1000",
+            FormulaRule(formula=["IF( W2 > 0 ,OR(W2<5, V2 <5), IF(V2>0,V2<5))"], fill=FDR4)    
         )
         ws_teams.conditional_formatting.add(
-            "V2:AF1000",
-            CellIsRule(operator="equal", formula=["5"], fill=FDR5)
+            "V2:AG1000",
+            FormulaRule(formula=["OR(W2=5, V2 =5)"], fill=FDR5)
             
         )
         
