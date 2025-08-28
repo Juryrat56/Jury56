@@ -2,11 +2,21 @@ import requests
 import pandas as pd
 import numpy as np
 from openpyxl import load_workbook
+from openpyxl.formatting.rule import CellIsRule
+from openpyxl.formatting.rule import FormulaRule
+from openpyxl.styles import PatternFill
 import matplotlib.pyplot as plt
 import os
 
 BASE_URL = "https://fantasy.premierleague.com/api/"
 Save_Location = "G:\My Drive"
+
+# Define a fill style 
+FDR1 = PatternFill(start_color="375523", end_color="375523", fill_type="solid")
+FDR2 = PatternFill(start_color="01FC7A", end_color="01FC7A", fill_type="solid")
+FDR3 = PatternFill(start_color="F5E000", end_color="F5E000", fill_type="solid")
+FDR4 = PatternFill(start_color="FF1751", end_color="FF1751", fill_type="solid")
+FDR5 = PatternFill(start_color="80072D", end_color="80072D", fill_type="solid")
 
 def login_fpl(email, password):
     """Log in to FPL and return a session."""
@@ -53,7 +63,16 @@ def get_live_points(gw):
     response.raise_for_status()
     return response.json()
 
-def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, filename="fpl_data.xlsx"):
+def get_watchlist(filename):
+    """get watchlist players from My Team sheet"""
+    required_cols = "A:A"
+    watch_df = pd.read_excel(f'{filename}', sheet_name = "My Team", skiprows = 0, usecols = required_cols)
+    print("watchlist")
+    print(watch_df.to_string(index=False))  # cleaner printout
+    print("debug")
+    return watch_df
+
+def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, filename):
     """
     Export multiple DataFrames to Excel and include a Lookup sheet.
     Automatically adds VLOOKUP formulas in 'My Team' sheet.
@@ -82,48 +101,75 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
 
         # Determine last column and add new headers
         col_max = ws_team.max_column
-        new_columns = ["Player Name", "Team Name","Team" , "Position", "Cost (M)", "Total Team Value (M)", "fixture 1", "FDR 1", "fixture 2", "FDR 2", "fixture 3", "FDR 3", "fixture 4", "FDR 4", "fixture 5", "FDR 5", "AVG FDR"]
+        new_columns = ["Player Name", "Team Name","Team" , "Position", "Cost (M)", "Total Team Value (M)", "fixture 1", "FDR 1", "fixture 2", "FDR 2", "fixture 3", "FDR 3", "fixture 4", "FDR 4", "fixture 5", "FDR 5", "Team FDR", "AVG FDR"]
         for i, header in enumerate(new_columns, start=col_max + 1):
             ws_team.cell(row=1, column=i, value=header)
 
         # Add VLOOKUP formulas for each player row
-        for row in range(2, ws_team.max_row + 1):
+        for row in range(2, ws_team.max_row + 8):
             player_id_cell = f"A{row}"  # adjust if player ID is in another column
             team_id_cell = f"I{row}"
             ws_team.cell(row=row, column=col_max + 1,
-                         value=f"=VLOOKUP({player_id_cell}, Lookup!$A$2:$K$1000, 2, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({player_id_cell}, Lookup!$A$2:$K$1000, 2, FALSE))')
             ws_team.cell(row=row, column=col_max + 2,
-                         value=f"=VLOOKUP({player_id_cell}, Lookup!$A$2:$K$1000, 9, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({player_id_cell}, Lookup!$A$2:$K$1000, 9, FALSE))')
             ws_team.cell(row=row, column=col_max + 3,
-                         value=f"=VLOOKUP({player_id_cell}, Lookup!$A$2:$K$1000, 5, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({player_id_cell}, Lookup!$A$2:$K$1000, 5, FALSE))')
             ws_team.cell(row=row, column=col_max + 4,
-                         value=f"=VLOOKUP({player_id_cell}, Lookup!$A$2:$K$1000, 11, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({player_id_cell}, Lookup!$A$2:$K$1000, 11, FALSE))')
             ws_team.cell(row=row, column=col_max + 5,
-                         value=f"=VLOOKUP({player_id_cell}, Lookup!$A$2:$K$1000, 7, FALSE)/10")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({player_id_cell}, Lookup!$A$2:$K$1000, 7, FALSE)/10)')
             ws_team.cell(row=2, column=col_max + 6,
                          value=f"=SUM($K$2:$K$16)")
             ws_team.cell(row=row, column=col_max + 7,
-                         value=f"=VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 19, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 19, FALSE))')
             ws_team.cell(row=row, column=col_max + 8,
-                         value=f"=VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 20, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 20, FALSE))')
             ws_team.cell(row=row, column=col_max + 9,
-                         value=f"=VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 21, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 21, FALSE))')
             ws_team.cell(row=row, column=col_max + 10,
-                         value=f"=VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 22, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 22, FALSE))')
             ws_team.cell(row=row, column=col_max + 11,
-                         value=f"=VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 23, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 23, FALSE))')
             ws_team.cell(row=row, column=col_max + 12,
-                         value=f"=VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 24, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 24, FALSE))')
             ws_team.cell(row=row, column=col_max + 13,
-                         value=f"=VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 25, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 25, FALSE))')
             ws_team.cell(row=row, column=col_max + 14,
-                         value=f"=VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 26, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 26, FALSE))')
             ws_team.cell(row=row, column=col_max + 15,
-                         value=f"=VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 27, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 27, FALSE))')
             ws_team.cell(row=row, column=col_max + 16,
-                         value=f"=VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 28, FALSE)")
+                         value=f'=IF({player_id_cell} = "","",VLOOKUP({team_id_cell}, Teams!$D$2:$AE$1000, 28, FALSE))')
             ws_team.cell(row=row, column=col_max + 17,
-                         value=f"=(N{row} + P{row} + R{row} + T{row} + V{row})/5")
+                         value=f'=H{row}')
+            ws_team.cell(row=row, column=col_max + 18,
+                         value=f'=IF({player_id_cell} = "","",(N{row} + P{row} + R{row} + T{row} + V{row})/5)')
+
+        ws_team.conditional_formatting.add(
+            "M2:X1000",
+            FormulaRule(formula=["IF( N2 > 0 ,OR(N2<2, M2 <2), IF(M2>0,M2<2))"], fill=FDR1)    
+        )
+        
+        ws_team.conditional_formatting.add(
+            "M2:X1000",
+            FormulaRule(formula=["IF( N2 > 0 ,OR(N2<3, M2 <3), IF(M2>0,M2<3))"], fill=FDR2)   
+        )
+
+        ws_team.conditional_formatting.add(
+            "M2:X1000",
+            FormulaRule(formula=["IF( N2 > 0 ,OR(N2<4, M2 <4), IF(M2>0,M2<4))"], fill=FDR3)   
+        )
+
+        ws_team.conditional_formatting.add(
+            "M2:X1000",
+            FormulaRule(formula=["IF( N2 > 0 ,OR(N2<5, M2 <5), IF(M2>0,M2<5))"], fill=FDR4)
+        )
+        ws_team.conditional_formatting.add(
+            "M2:X1000",
+            FormulaRule(formula=["OR(N2=5, M2 =5)"], fill=FDR5)
+            
+        )
 
         
         #team_lookup = {t["short_name"]: t["id"] for t in teams}
@@ -133,7 +179,7 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
         for f in fixtures:
             if f["event"] is None:
                 continue
-            if f["event"] < GAMEWEEK +1 or f["event"] >= GAMEWEEK + 6:
+            if f["event"] < GAMEWEEK + 1 or f["event"] >= GAMEWEEK + 6:
                 continue
 
             home = teams[f["team_h"] - 1]["short_name"]
@@ -172,7 +218,33 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
                 ws_teams.cell(row=row, column=col, value=fixture)
                 ws_teams.cell(row=row, column=col+1, value=difficulty)
                 col += 2
+            ws_teams.cell(row=row, column=col,
+                         value=f'=((W{row} + Y{row} + AA{row} + AC{row} + AE{row})/5)')
+            
+        ws_teams.conditional_formatting.add(
+            "V2:AF1000",
+            CellIsRule(operator="between", formula=["1", "1.99"], fill=FDR1)    
+        )
         
+        ws_teams.conditional_formatting.add(
+            "V2:AF1000",
+            CellIsRule(operator="between", formula=["2", "2.99"], fill=FDR2)   
+        )
+
+        ws_teams.conditional_formatting.add(
+            "V2:AF1000",
+            CellIsRule(operator="between", formula=["3","3.99"], fill=FDR3)   
+        )
+
+        ws_teams.conditional_formatting.add(
+            "V2:AF1000",
+            CellIsRule(operator="between", formula=["4", "4.99"], fill=FDR4)
+        )
+        ws_teams.conditional_formatting.add(
+            "V2:AF1000",
+            CellIsRule(operator="equal", formula=["5"], fill=FDR5)
+            
+        )
         
 
     Save_Path = os.path.join(Save_Location, filename)
@@ -396,7 +468,7 @@ if __name__ == "__main__":
     TEAM_ID = 1533428  # Replace with your FPL team ID (find in URL of your team page)
     GAMEWEEK = 2       # Change to current gameweek
     FUTURE_FIX = 3         # number of future fixtures shown
-
+    filename="fpl_data.xlsx"
     # Login
     session = login_fpl(EMAIL, PASSWORD)
 
@@ -414,7 +486,7 @@ if __name__ == "__main__":
 
     fixtures = get_fixtures(GAMEWEEK)
     for f in fixtures:
-        if f['event'] >= GAMEWEEK | f['event'] < GAMEWEEK + 5:
+        if f['event'] >= GAMEWEEK +1| f['event'] < GAMEWEEK + 6:
             print(
                 f"GW{f['event']}: Team {f['team_h']} vs Team {f['team_a']} | "
             f"H difficulty: {f['team_h_difficulty']}, A difficulty: {f['team_a_difficulty']}"
@@ -503,7 +575,7 @@ if __name__ == "__main__":
     combined_histories_OBC = Mini_league_standings(OBC_league_id)
 
     
-
+    watchlist = get_watchlist(filename)
     
     
     # 6. Export everything to Excel
@@ -515,7 +587,7 @@ if __name__ == "__main__":
         "OBC League Histories": combined_histories_OBC,
         "Live Points": live_with_names,
         "Teams": teams_df
-    }, player_lookup, teams_df, fixtures)
+    }, player_lookup, teams_df, fixtures, filename)
 
     # 7. Plot league points
     #plot_league_histories(combined_histories_ale)
