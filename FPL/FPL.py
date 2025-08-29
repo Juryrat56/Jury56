@@ -608,11 +608,18 @@ if __name__ == "__main__":
 
     #fixtures
 
-    stats_df = players_df[["id", "total_points", "minutes", "points_per_game"]].rename(
+    stats_df = players_df[["id", "total_points", "minutes", "points_per_game", "goals_scored" , "assists" ,"expected_goals_per_90","expected_assists_per_90","expected_goal_involvements_per_90", "clean_sheets", "expected_goals_conceded_per_90"]].rename(
         columns={
             "total_points": "t_points",
             "minutes": "t_minutes",
-            "points_per_game": "points_pg"
+            "points_per_game": "points_pg",
+            "goals_scored": "goals",
+            "assists": "assists made",
+            "expected_goals_per_90": "xG",
+            "expected_assists_per_90": "xA",
+            "expected_goal_involvements_per_90": "xGI",
+            "clean_sheets": "CS",
+            "expected_goals_conceded_per_90": "xGC"
         }
     )
     
