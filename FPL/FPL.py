@@ -579,7 +579,7 @@ if __name__ == "__main__":
     EMAIL = input("your_email_here: ")
     PASSWORD = input("your_password_here: ")
     TEAM_ID = 1533428  # Replace with your FPL team ID (find in URL of your team page)
-    GAMEWEEK = 2       # Change to current gameweek
+    GAMEWEEK = 3       # Change to current gameweek
     FUTURE_FIX = 3         # number of future fixtures shown
     filename="FPL_analysis.xlsx"
     # Login
