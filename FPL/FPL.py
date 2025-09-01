@@ -527,7 +527,47 @@ def plot_league_histories(histories_df):
     plt.ylabel("Total Points")
     plt.axhline(y=0, xmin=0, xmax=1, c = 'r')
     plt.grid(True, alpha=0.3)
-    plt.xticks(np.arange(0, 5, step=1))
+    plt.xticks(np.arange(0, GAMEWEEK+2, step=1))
+    plt.tight_layout()
+    plt.show()
+
+
+
+def plot_league_ranks(histories_df):
+    """
+    Plot rank over gameweeks for all managers in a league.
+    histories_df: DataFrame from combined_histories (includes manager, event, total_points)
+    """
+
+    #print(histories_df.head())
+    #print(histories_df.columns)
+    #print(histories_df.dtypes)
+    plt.figure(figsize=(16, 8))  # wider
+    #print(histories_df["manager"].unique())
+
+    # Group by manager and plot each line
+    for manager, df in histories_df.groupby("manager"):
+        df = df.sort_values("event") #sort by gameweek
+        # Plot step line and capture the color
+        line, = plt.plot(df["event"], df["overall_rank"], marker = "x", alpha=0.9)
+        color = line.get_color()
+
+        # Invert y-axis
+        plt.gca().invert_yaxis()
+
+    # Add marker at last point
+        x_last = df["event"].iloc[-1]
+        y_last = df["overall_rank"].iloc[-1]
+        plt.scatter(x_last, y_last, s=30, color=color)
+        plt.text(x_last + 0.2, y_last, f"{manager} ({int(y_last)})", fontsize=8, va="center", color=color)
+    # Add manager label + final Elo score in matching color
+
+    plt.title("League Members rank Over Time", fontsize=16, weight="bold")
+    plt.xlabel("Gameweek")
+    plt.ylabel("Overall Rank")
+    plt.axhline(y=0, xmin=0, xmax=1, c = 'r')
+    plt.grid(True, alpha=0.3)
+    plt.xticks(np.arange(0, GAMEWEEK+2, step=1))
     plt.tight_layout()
     plt.show()
 
@@ -570,7 +610,7 @@ def plot_league_elo(histories_df):
     plt.ylabel("ELO rating")
     plt.axhline(y=1500, xmin=0, xmax=1, c = 'r')
     plt.grid(True, alpha=0.3)
-    plt.xticks(np.arange(0, 5, step=1))
+    plt.xticks(np.arange(0, GAMEWEEK+2, step=1))
     #plt.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=3, fontsize=8)
     plt.tight_layout()
     plt.show()
@@ -579,7 +619,7 @@ if __name__ == "__main__":
     EMAIL = input("your_email_here: ")
     PASSWORD = input("your_password_here: ")
     TEAM_ID = 1533428  # Replace with your FPL team ID (find in URL of your team page)
-    GAMEWEEK = 2       # Change to current gameweek
+    GAMEWEEK = 3       # Change to current gameweek
     FUTURE_FIX = 3         # number of future fixtures shown
     filename="FPL_analysis.xlsx"
     # Login
@@ -695,15 +735,17 @@ if __name__ == "__main__":
     print("\nLive GW Points (flattened):")
     print(live_with_names.head())
 
+    print("Loading...")
+
 
 
     # 5. Mini League standings
 
-    ale_league_id = 828398  # your mini-league ID
-    OBC_league_id = 235840
+    league_id_1 = 828398  # ALE
+    league_id_2 = 235840  # OBC
     
-    combined_histories_ale = Mini_league_standings(ale_league_id)
-    combined_histories_OBC = Mini_league_standings(OBC_league_id)
+    combined_histories_ale = Mini_league_standings(league_id_1)
+    combined_histories_OBC = Mini_league_standings(league_id_2)
 
     
     
@@ -720,12 +762,54 @@ if __name__ == "__main__":
         "Teams": teams_df
     }, player_lookup, teams_df, fixtures, filename)
 
-    # 7. Plot league points
-    #plot_league_histories(combined_histories_ale)
-    #combined_histories_ale = add_week0_elo(combined_histories_ale, start_elo=1500)
-    #plot_league_elo(combined_histories_ale)
+    
 
-    combined_histories_OBC = add_week0_points(combined_histories_OBC, start_points=0)
-    plot_league_histories(combined_histories_OBC)
+    repeat = 1
+    select = 1
+    while repeat == 1:
+        league = input(f"\nWhich mini league do you want to investigate?\n1. league {league_id_1} (ALE),\n2. league {league_id_2} (OBC).\n")
+    
+        match league:
+            case "1":
+                print(f"League 1 selected, id: {league_id_1}")
+                combined_h = combined_histories_ale
+                repeat = 0
+
+            case "2":
+                print(f"League 2 selected, id: {league_id_2}")
+                combined_h = combined_histories_OBC
+                repeat = 0
+
+            case _:
+                print("Please input either 1 or 2")
+
+    while select == 1:
+        graph = input(f"\nWhich graph do you want to print?\n 1. Total points,\n 2. Manager elo,\n 3. Overall rank.\n")
+
+        match graph:
+            case "1":
+                print(f"{graph}. Total points for League {league}:")
+                combined_h = add_week0_points(combined_h, start_points=0)
+                plot_league_histories(combined_h)
+                select = 0
+        
+            case "2":
+                print(f"{graph}. Manager elo for League {league}:")
+                combined_h = add_week0_elo(combined_h, start_elo=1500)
+                plot_league_elo(combined_h)
+                select = 0
+        
+            case "3":
+                print(f"{graph}. Overall rank for League {league}:")
+                plot_league_ranks(combined_h)
+                select = 0
+            case _:
+                print("Please input either 1, 2 or 3")
+                
+                
+
+
+        
+    
 
     
