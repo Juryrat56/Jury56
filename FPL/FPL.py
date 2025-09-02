@@ -20,6 +20,8 @@ FDR4 = PatternFill(start_color="FF1751", end_color="FF1751", fill_type="solid")
 FDR5 = PatternFill(start_color="80072D", end_color="80072D", fill_type="solid")
 L_RED = PatternFill(start_color="FF6961", end_color="FF6961", fill_type="solid")
 L_YEL = PatternFill(start_color="FFEEBC", end_color="FFEEBC", fill_type="solid")
+L_BLUE = PatternFill(start_color="D5FFFF", end_color="D5FFFF", fill_type="solid")
+L_GRAY = PatternFill(start_color="CDCDCD", end_color="CDCDCD", fill_type="solid")
 
 def login_fpl(email, password):
     """Log in to FPL and return a session."""
@@ -75,6 +77,15 @@ def get_watchlist(filename):
     print("debug")
     return watch_df
 
+def isEven(n):
+    
+    # finding remainder of n
+    rem = n % 2; 
+    if rem == 0:
+        return True
+    else:
+        return False
+
 def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, filename):
     
     teams = teams.to_dict("records")
@@ -105,21 +116,27 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
     if new_sheet_name not in wb.sheetnames:
         wb.create_sheet(new_sheet_name)
 
-    if "My_Team" in wb.sheetnames and "Lookup" and "Watchlist" in wb.sheetnames:
-        ws_team = wb["My_Team"]
-        ws_lookup = wb["Lookup"]
-        ws_watch = wb["Watchlist"]
+    required = [
+        "My_Team",
+        "Lookup",
+        "Watchlist",
+        "Ale_League_Histories",
+        "OBC_League_Histories",
+    ]
+
+    if all(sheet in wb.sheetnames for sheet in required):
+        ws_team, ws_lookup, ws_watch, ws_ale, ws_obc = [wb[name] for name in required]
 
         # Determine last column and add new headers
         col_max = ws_team.max_column
         new_columns = ["Player Name", "Team Name","Team" , "Position", "Cost (M)", "GW points", "Total Team Value (M)",
                        f"GW{GAMEWEEK+1}", f"GW{GAMEWEEK+1} FDR", f"GW{GAMEWEEK+2}", f"GW{GAMEWEEK+2} FDR", f"GW{GAMEWEEK+3}", f"GW{GAMEWEEK+3} FDR", f"GW{GAMEWEEK+4}", f"GW{GAMEWEEK+4} FDR", f"GW{GAMEWEEK+5}", f"GW{GAMEWEEK+5} FDR",
-                       "Team FDR", "AVG FDR"]
+                       "Team FDR", "AVG FDR", "% Fitness"]
         for i, header in enumerate(new_columns, start=col_max + 1):
             ws_team.cell(row=1, column=i, value=header)
 
         # Add VLOOKUP formulas for each player row
-        for row in range(2, ws_team.max_row + 10):
+        for row in range(2, ws_team.max_row + 20):
             player_id_cell = f"A{row}"  # adjust if player ID is in another column
             team_id_cell = f"I{row}"
             if row <= ws_team.max_row:
@@ -170,8 +187,10 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
                          value=f'=H{row}')
             ws_team.cell(row=row, column=col_max + 19,
                          value=f'=IF({player_id_cell} = "","",(O{row} + Q{row} + S{row} + U{row} + W{row})/5)')
+            ws_team.cell(row=row, column=col_max + 20,
+                          value=f'=IF({player_id_cell} = "","",VLOOKUP({player_id_cell}, Lookup!A$1:V$1000, 22, FALSE))')
             
-        for row in range(1,26):
+        for row in range(1,36):
             ws_watch.cell(row=row, column=1,
                          value=f"='My_Team'!A{row}")
             if row <= 16:
@@ -184,11 +203,11 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
             ws_watch.cell(row=row, column=5,
                          value=f"='My_Team'!K{row}")
             ws_watch.cell(row=row, column=6,
-                         value=f'=IF(A{row} = "","",VLOOKUP(A{row}, Lookup!A1:N708, 12, FALSE))')
+                         value=f'=IF(A{row} = "","",VLOOKUP(A{row}, Lookup!A1:N1000, 12, FALSE))')
             ws_watch.cell(row=row, column=7,
-                         value=f'=IF(A{row} = "","",VLOOKUP(A{row}, Lookup!A1:N708, 13, FALSE))')
+                         value=f'=IF(A{row} = "","",VLOOKUP(A{row}, Lookup!A1:N1000, 13, FALSE))')
             ws_watch.cell(row=row, column=8,
-                         value=f'=IF(A{row} = "","",VLOOKUP(A{row}, Lookup!A1:N708, 14, FALSE))')
+                         value=f'=IF(A{row} = "","",VLOOKUP(A{row}, Lookup!A1:N1000, 14, FALSE))')
             ws_watch.cell(row=1, column=6,
                          value=f'T Points')
             ws_watch.cell(row=1, column=7,
@@ -219,6 +238,10 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
                          value=f"='My_Team'!X{row}")
             ws_watch.cell(row=row, column=20,
                          value=f"='My_Team'!Y{row}")
+            ws_watch.cell(row=row, column=21,
+                          value=f'=IF($A{row} = "","",VLOOKUP($A{row}, Lookup!A$1:V$1000, 22, FALSE))')
+            ws_watch.cell(row=1, column=21,
+                          value=f'% Fitness')
 
         ws_watch.conditional_formatting.add(
             "I2:T1000",
@@ -242,6 +265,18 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
         ws_watch.conditional_formatting.add(
             "I2:T1000",
             FormulaRule(formula=["OR(J2=5, I2 =5)"], fill=FDR5)
+        )
+        ws_watch.conditional_formatting.add(
+            "A2:H36",
+            FormulaRule(formula=['AND($U2 <> "",$U2=0)'], fill=FDR4)
+        )
+        ws_watch.conditional_formatting.add(
+            "A2:H36",
+            FormulaRule(formula=['AND($U2 <> "",$U2<100)'], fill=FDR3)
+        )
+        ws_watch.conditional_formatting.add(
+            "A2:H36",
+            FormulaRule(formula=['AND($U2 <> "",$U2=100)'], fill=FDR2)
         )
 
 
@@ -272,13 +307,49 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
             
         )
         ws_team.conditional_formatting.add(
-            "A2:K1000",
-            FormulaRule(formula=["$B2>11"], fill=L_RED)
+            "A2:L36",
+            FormulaRule(formula=['AND($Z2 <> "",$Z2=0)'], fill=FDR4)
+        )
+        ws_team.conditional_formatting.add(
+            "A2:L36",
+            FormulaRule(formula=['AND($Z2 <> "",$Z2<100)'], fill=FDR3)
+        )
+        ws_team.conditional_formatting.add(
+            "A2:L36",
+            FormulaRule(formula=['AND($Z2 <> "",$Z2=100)'], fill=FDR2)
+        )
+        
+        ws_team.conditional_formatting.add(
+            "A2:K16",
+            FormulaRule(formula=['$B2>11'], fill=L_RED)
             
         )
         ws_team.conditional_formatting.add(
             "A17:K1000",
             FormulaRule(formula=['$G17<>""'], fill=L_YEL)
+            
+        )
+
+        # ale colour
+        ws_ale.conditional_formatting.add(
+            "A2:W1000",
+            FormulaRule(formula=['ISODD($A2)'], fill=L_BLUE)
+            
+        )
+        ws_ale.conditional_formatting.add(
+            "A2:W1000",
+            FormulaRule(formula=['AND($A2 <> 0,ISEVEN($A2))'], fill=L_GRAY)
+            
+        )
+        # obc colour
+        ws_obc.conditional_formatting.add(
+            "A2:W1000",
+            FormulaRule(formula=['ISODD($A2)'], fill=L_BLUE)
+            
+        )
+        ws_obc.conditional_formatting.add(
+            "A2:W1000",
+            FormulaRule(formula=['AND($A2 <> 0,ISEVEN($A2))'], fill=L_GRAY)
             
         )
 
@@ -567,7 +638,7 @@ def plot_league_ranks(histories_df):
     plt.ylabel("Overall Rank")
     plt.axhline(y=0, xmin=0, xmax=1, c = 'r')
     plt.grid(True, alpha=0.3)
-    plt.xticks(np.arange(0, GAMEWEEK+2, step=1))
+    plt.xticks(np.arange(1, GAMEWEEK+2, step=1))
     plt.tight_layout()
     plt.show()
 
@@ -648,7 +719,7 @@ if __name__ == "__main__":
 
     #fixtures
 
-    stats_df = players_df[["id", "total_points", "minutes", "points_per_game", "goals_scored" , "assists" ,"expected_goals_per_90","expected_assists_per_90","expected_goal_involvements_per_90", "clean_sheets", "expected_goals_conceded_per_90"]].rename(
+    stats_df = players_df[["id", "total_points", "minutes", "points_per_game", "goals_scored" , "assists" ,"expected_goals_per_90","expected_assists_per_90","expected_goal_involvements_per_90", "clean_sheets", "expected_goals_conceded_per_90", "chance_of_playing_next_round"]].rename(
         columns={
             "total_points": "t_points",
             "minutes": "t_minutes",
@@ -659,7 +730,8 @@ if __name__ == "__main__":
             "expected_assists_per_90": "xA",
             "expected_goal_involvements_per_90": "xGI",
             "clean_sheets": "CS",
-            "expected_goals_conceded_per_90": "xGC"
+            "expected_goals_conceded_per_90": "xGC",
+            "chance_of_playing_next_round": "Fitness"
         }
     )
     
