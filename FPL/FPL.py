@@ -22,6 +22,8 @@ L_RED = PatternFill(start_color="FF6961", end_color="FF6961", fill_type="solid")
 L_YEL = PatternFill(start_color="FFEEBC", end_color="FFEEBC", fill_type="solid")
 L_BLUE = PatternFill(start_color="D5FFFF", end_color="D5FFFF", fill_type="solid")
 L_GRAY = PatternFill(start_color="CDCDCD", end_color="CDCDCD", fill_type="solid")
+L_GREEN = PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid")
+
 
 def login_fpl(email, password):
     """Log in to FPL and return a session."""
@@ -122,10 +124,12 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
         "Watchlist",
         "Ale_League_Histories",
         "OBC_League_Histories",
+        "Team_History",
+        "Lookup"
     ]
 
     if all(sheet in wb.sheetnames for sheet in required):
-        ws_team, ws_lookup, ws_watch, ws_ale, ws_obc = [wb[name] for name in required]
+        ws_team, ws_lookup, ws_watch, ws_ale, ws_obc, ws_hist, ws_look = [wb[name] for name in required]
 
         # Determine last column and add new headers
         col_max = ws_team.max_column
@@ -243,6 +247,14 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
             ws_watch.cell(row=1, column=21,
                           value=f'% Fitness')
 
+        for row in range(2, ws_ale.max_row+1):
+            ws_ale.cell(row=row, column=18,
+                         value=f'=SUM(T{row}:V{row})+1-(T{row}+U{row})')
+
+        for row in range(2, ws_obc.max_row+1):
+            ws_obc.cell(row=row, column=18,
+                         value=f'=SUM(T{row}:V{row})+1-(T{row}+U{row}')
+
         ws_watch.conditional_formatting.add(
             "I2:T1000",
             FormulaRule(formula=["IF( J2 > 0 ,OR(J2<2, I2 <2), IF(I2>0,I2<2))"], fill=FDR1)    
@@ -267,15 +279,15 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
             FormulaRule(formula=["OR(J2=5, I2 =5)"], fill=FDR5)
         )
         ws_watch.conditional_formatting.add(
-            "A2:H36",
+            "A2:U36",
             FormulaRule(formula=['AND($U2 <> "",$U2=0)'], fill=FDR4)
         )
         ws_watch.conditional_formatting.add(
-            "A2:H36",
+            "A2:U36",
             FormulaRule(formula=['AND($U2 <> "",$U2<100)'], fill=FDR3)
         )
         ws_watch.conditional_formatting.add(
-            "A2:H36",
+            "A2:U36",
             FormulaRule(formula=['AND($U2 <> "",$U2=100)'], fill=FDR2)
         )
 
@@ -307,25 +319,25 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
             
         )
         ws_team.conditional_formatting.add(
-            "A2:L36",
+            "A2:Z36",
             FormulaRule(formula=['AND($Z2 <> "",$Z2=0)'], fill=FDR4)
         )
         ws_team.conditional_formatting.add(
-            "A2:L36",
+            "A2:Z36",
             FormulaRule(formula=['AND($Z2 <> "",$Z2<100)'], fill=FDR3)
         )
         ws_team.conditional_formatting.add(
-            "A2:L36",
+            "A2:Z36",
             FormulaRule(formula=['AND($Z2 <> "",$Z2=100)'], fill=FDR2)
         )
         
         ws_team.conditional_formatting.add(
-            "A2:K16",
+            "A2:L16",
             FormulaRule(formula=['$B2>11'], fill=L_RED)
             
         )
         ws_team.conditional_formatting.add(
-            "A17:K1000",
+            "A17:L1000",
             FormulaRule(formula=['$G17<>""'], fill=L_YEL)
             
         )
@@ -352,7 +364,28 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
             FormulaRule(formula=['AND($A2 <> 0,ISEVEN($A2))'], fill=L_GRAY)
             
         )
+        ws_hist.conditional_formatting.add(
+            "D2:F39",
+            FormulaRule(formula=['AND($F2 <> 0,$F2<$F1)'], fill=L_GREEN)
+        )
+        ws_hist.conditional_formatting.add(
+            "D2:F39",
+            FormulaRule(formula=['$F2>$F1'], fill=L_RED)
+        )
 
+
+        ws_look.conditional_formatting.add(
+            "A2:V1000",
+            FormulaRule(formula=['AND($V2 <> "",$V2=0)'], fill=FDR4)
+        )
+        ws_look.conditional_formatting.add(
+            "A2:V1000",
+            FormulaRule(formula=['AND($V2 <> "",$V2<100)'], fill=FDR3)
+        )
+        ws_look.conditional_formatting.add(
+            "A2:V1000",
+            FormulaRule(formula=['AND($V2 <> "",$V2=100)'], fill=FDR2)
+        )
         
         #team_lookup = {t["short_name"]: t["id"] for t in teams}
         
@@ -429,7 +462,16 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
             FormulaRule(formula=["OR(W2=5, V2 =5)"], fill=FDR5)
             
         )
-        
+        ws_teams.conditional_formatting.add(
+            "A2:U1000",
+            FormulaRule(formula=['ISODD($D2)'], fill=L_BLUE)
+            
+        )
+        ws_teams.conditional_formatting.add(
+            "A2:U1000",
+            FormulaRule(formula=['AND($D2 <> 0,ISEVEN($D2))'], fill=L_GRAY)
+            
+        )
 
     Save_Path = os.path.join(Save_Location, filename)
     wb.save(Save_Path)
@@ -839,7 +881,7 @@ if __name__ == "__main__":
     repeat = 1
     select = 1
     while repeat == 1:
-        league = input(f"\nWhich mini league do you want to investigate?\n1. league {league_id_1} (ALE),\n2. league {league_id_2} (OBC).\n")
+        league = input(f"\nWhich mini league do you want to investigate?\n1. league {league_id_1} (ALE),\n2. league {league_id_2} (OBC),\n3. Exit.\n")
     
         match league:
             case "1":
@@ -851,12 +893,17 @@ if __name__ == "__main__":
                 print(f"League 2 selected, id: {league_id_2}")
                 combined_h = combined_histories_OBC
                 repeat = 0
+                
+            case "3":
+                print(f"Exit")
+                select = 0
+                repeat = 0
 
             case _:
                 print("Please input either 1 or 2")
 
     while select == 1:
-        graph = input(f"\nWhich graph do you want to print?\n 1. Total points,\n 2. Manager elo,\n 3. Overall rank.\n")
+        graph = input(f"\nWhich graph do you want to print?\n 1. Total points,\n 2. Manager elo,\n 3. Overall rank,\n 4. Exit.\n")
 
         match graph:
             case "1":
@@ -874,6 +921,10 @@ if __name__ == "__main__":
             case "3":
                 print(f"{graph}. Overall rank for League {league}:")
                 plot_league_ranks(combined_h)
+                select = 0
+
+            case "4":
+                print(f"Exit")
                 select = 0
             case _:
                 print("Please input either 1, 2 or 3")
