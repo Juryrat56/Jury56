@@ -253,7 +253,7 @@ def export_to_excel_with_lookup(dataframes, player_lookup, teams, fixtures, file
 
         for row in range(2, ws_obc.max_row+1):
             ws_obc.cell(row=row, column=18,
-                         value=f'=SUM(T{row}:V{row})+1-(T{row}+U{row}')
+                         value=f'=SUM(T{row}:V{row})+1-(T{row}+U{row})')
 
         ws_watch.conditional_formatting.add(
             "I2:T1000",
